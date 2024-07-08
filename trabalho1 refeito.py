@@ -51,18 +51,66 @@ def busca_chave(entrada: io.TextIOWrapper, chave: str):
 
 
 def remover_registro(entrada: io.TextIOWrapper, chave: str):
-    chave_removida, ponteiro_removido, offset_removido = busca_chave(entrada,chave)
-    print(ponteiro_removido)
+    chave_removida, ponteiro_removido, tamanho_removido = busca_chave(entrada,chave)
     entrada.seek(os.SEEK_SET)
     offset_led = entrada.read(4)
-    #if int.from_bytes(offset_led) != CABECA_LED_PADRAO:
-        #tamanho_led =
     entrada.seek(ponteiro_removido, os.SEEK_SET)
     entrada.write('*'.encode())
-    entrada.write(offset_led)    
+    ponteiro_pre_offset = ponteiro_removido - 2
+    while int.from_bytes(offset_led) != CABECA_LED_PADRAO:
+        entrada.seek(int.from_bytes(offset_led), os.SEEK_SET)
+        tamanho_atual_led = int.from_bytes(entrada.read(2))
+        if tamanho_atual_led > tamanho_removido:
+            entrada.seek(1)
+            offset_led = entrada.read(4)
+        else:
+            offset_proximo = offset_led
+            offset_led = ponteiro_pre_offset.to_bytes(4)
+            entrada.seek(ponteiro_removido + 1, os.SEEK_SET)
+            entrada.write(offset_proximo)
+            entrada.seek(ponteiro_removido + 1, os.SEEK_SET)
+            
+
+    entrada.seek(ponteiro_removido + 1, os.SEEK_SET)
+    entrada.write(CABECA_LED_PADRAO.to_bytes(4))
+    offset_led = ponteiro_pre_offset
+    entrada.seek(os.SEEK_SET)
+    entrada.write(offset_led.to_bytes(4))
     entrada.seek(os.SEEK_SET)
 
+    
+    
+    
+    '''
+    if int.from_bytes(offset_led) == CABECA_LED_PADRAO:
+        entrada.seek(ponteiro_removido + 1, os.SEEK_SET)
+        entrada.write(CABECA_LED_PADRAO.to_bytes(4))
+        offset_led = ponteiro_pre_offset
+        entrada.seek(os.SEEK_SET)
+        entrada.write(offset_led.to_bytes(4))
+        entrada.seek(os.SEEK_SET)
+    else:
+    '''       
 
-with open('dados_copy.dat', 'rb+') as entrada:
-    remover_registro(entrada,'7')
-    remover_registro(entrada,'6')
+
+
+    '''if int.from_bytes(offset_led) != CABECA_LED_PADRAO:
+        while ponteiro_pre_offset != CABECA_LED_PADRAO:
+            entrada.seek(ponteiro_pre_offset, os.SEEK_SET)
+            tamanho_reg_led = int.from_bytes(entrada.read(2))
+            if tamanho_removido > tamanho_reg_led:                
+                offset_led = ponteiro_pre_offset
+                entrada.seek(os.SEEK_SET)
+                entrada.write(offset_led)
+            else:
+                entrada.seek(int.from_bytes(ponteiro_pre_offset) + 3,os.SEEK_SET)
+                ponteiro_pre_offset = int.from_bytes(entrada.read(4))
+    else:
+        entrada.write(offset_led)
+        entrada.seek(os.SEEK_SET)
+        entrada.write(ponteiro_pre_offset.to_bytes(4))'''
+
+
+with open('dados copy.dat', 'rb+') as entrada:
+    remover_registro(entrada,'2')
+    remover_registro(entrada,'1')
