@@ -46,44 +46,14 @@ def busca_chave(entrada: io.TextIOWrapper, chave: str):
         offset = len(buffer)
         return buffer, posicao_ponteiro, offset
     else:
-        print('Erro! Identificador não encontrado.')  
+        raise('Erro! Identificador não encontrado.')  
 
 
 def remover_registro(entrada: io.TextIOWrapper, chave: str):
-    ponteiro_removido = busca_chave(entrada, chave)[1]
-    print(ponteiro_removido)
-    tamanho_removido = entrada.read(2)
-    entrada.seek(0, os.SEEK_SET)
-    offset_led = entrada.read(4)
-    offset_led = int.from_bytes(offset_led)
-    entrada.seek(offset_led, os.SEEK_SET)
-    tamanho_chave_led = entrada.read(2)
-    entrada.seek(ponteiro_removido, os.SEEK_SET)
-    offset_cabecaLED = entrada.tell()
-    entrada.write('*'.encode())
-    if offset_led == CABECA_LED_PADRAO:
-        entrada.write(offset_led.to_bytes(4))
-        offset_led = offset_cabecaLED
-        entrada.seek(os.SEEK_SET)
-        entrada.write(offset_led.to_bytes(4))
-    else:
-        while offset_led != CABECA_LED_PADRAO:
-            if tamanho_removido > tamanho_chave_led:
-                entrada.write(offset_led.to_bytes(4))
-                offset_led = ponteiro_removido
-                tamanho_chave_led = tamanho_removido
-            else:
-                entrada.seek(offset_led.from_bytes(offset_led), os.SEEK_SET)
-                tamanho_proximo = entrada.read(2)
-                entrada.seek(1)
-                if tamanho_removido > tamanho_proximo:
-                    entrada.write(ponteiro_removido.to_bytes(4))
-                else:
-                    offset_led = entrada.read(4)
-                    #entrada.write(offset_led.to_bytes(4))
-        offset_led = offset_cabecaLED
-        entrada.seek(os.SEEK_SET)
-        entrada.write(offset_led.to_bytes(4))  
+    chave_removida, ponteiro_removido, offset_removido = busca_chave(entrada,chave)
+    print(ponteiro_removido, offset_removido)
+    entrada.seek(os.SEEK_SET)
 
 with open('dados_copy.dat', 'rb+') as entrada:
+    remover_registro(entrada,'101')
     remover_registro(entrada,'1')
