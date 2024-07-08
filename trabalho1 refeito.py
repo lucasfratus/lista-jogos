@@ -11,6 +11,7 @@ def leia_reg(entrada: io.TextIOWrapper):
     offset = entrada.read(2)
     offset = int.from_bytes(offset)    
     posicao_ponteiro = entrada.tell()
+    print(posicao_ponteiro)
     ler_possivel_asterisco = entrada.read(1).decode()
     if ler_possivel_asterisco != '*':
         entrada.seek(posicao_ponteiro, os.SEEK_SET)
@@ -51,9 +52,17 @@ def busca_chave(entrada: io.TextIOWrapper, chave: str):
 
 def remover_registro(entrada: io.TextIOWrapper, chave: str):
     chave_removida, ponteiro_removido, offset_removido = busca_chave(entrada,chave)
-    print(ponteiro_removido, offset_removido)
+    print(ponteiro_removido)
+    entrada.seek(os.SEEK_SET)
+    offset_led = entrada.read(4)
+    #if int.from_bytes(offset_led) != CABECA_LED_PADRAO:
+        #tamanho_led =
+    entrada.seek(ponteiro_removido, os.SEEK_SET)
+    entrada.write('*'.encode())
+    entrada.write(offset_led)    
     entrada.seek(os.SEEK_SET)
 
+
 with open('dados_copy.dat', 'rb+') as entrada:
-    remover_registro(entrada,'101')
-    remover_registro(entrada,'1')
+    remover_registro(entrada,'7')
+    remover_registro(entrada,'6')
