@@ -82,6 +82,7 @@ def remover_registro(entrada: io.TextIOWrapper, chave: str):
             entrada.write(byteOffset_removido.to_bytes(4)) # Escreve no menor registro maior que o último removido o byteoffset do último removido
             entrada.seek(byteOffset_removido+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do último registro removido
             entrada.write(headLed.to_bytes(4)) # Escreve após o '*' do último registro removido o próximo espaço disponível menor que ele (se não houver, escreve -1)
+    entrada.seek(os.SEEK_SET)
 
 
 
@@ -93,10 +94,22 @@ def remover_registro(entrada: io.TextIOWrapper, chave: str):
 
 
 
-
-
-
-
+def imprimir_led(entrada: io.TextIOWrapper):
+    entrada.seek(os.SEEK_SET)
+    cabeca_led = int.from_bytes(entrada.read(4))
+    print(cabeca_led)
+    buffer = 'LED'
+    contagem_espacos = 0
+    while cabeca_led != CABECA_LED_PADRAO:
+        contagem_espacos += 1
+        entrada.seek(cabeca_led, os.SEEK_SET)
+        offset = entrada.tell()
+        tamanho = int.from_bytes(entrada.read(2))
+        buffer += (f' -> [offset: {offset}, tam: {tamanho}]')
+        entrada.seek(1, os.SEEK_CUR)
+        cabeca_led = int.from_bytes(entrada.read(4))
+    buffer += ' -> [offset = - 1]' 
+    print(buffer + '\nTotal:', contagem_espacos,'espacos disponiveis' )
 
 
 
@@ -111,4 +124,5 @@ with open('dados copy.dat', 'rb+') as entrada:
     #remover_registro(entrada,'1')
     #remover_registro(entrada,'2')
     #remover_registro(entrada,'4')
-    remover_registro(entrada,'3')
+    #remover_registro(entrada,'3')
+    imprimir_led(entrada)
