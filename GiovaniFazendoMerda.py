@@ -1,6 +1,6 @@
 import io
 import os
-import sys
+
 # CONSTANTES
 SIZEOF_HEADER = 4
 CABECA_LED_PADRAO = 4294967295
@@ -26,6 +26,7 @@ def leia_reg(entrada: io.TextIOWrapper):
 
 
 def busca_chave(entrada: io.TextIOWrapper, chave: str):
+    entrada.seek(os.SEEK_SET) # Coloca, por garantia, o ponteiro no começo do arquivo
     achou = False
     registro, posicao_ponteiro = leia_reg(entrada) # É lido o primeiro registro e são guardadas a string devolvida e a posição do ponteiro após ser lido o offset do registro
     while registro != '' and not achou:
@@ -44,90 +45,70 @@ def busca_chave(entrada: io.TextIOWrapper, chave: str):
             if campo != '':
                 buffer = buffer + campo + '|' # Recompõe-se o registro completo
         offset = len(buffer) # É medido o offset (tamanho) do registro
-        return buffer, posicao_ponteiro - 2, offset # Devolve o registro completo, posição do ponteiro antes mesmo de ser lido o offset do registro e seu próprio offset
+        return buffer, posicao_ponteiro - 2, offset # Devolve o registro completo, byteoffset do registro e seu próprio offset (tamanho)
     else: # Caso não encontre o registro buscado, levante o erro na busca
         raise('Erro! Identificador não encontrado.')  
 
-
 def remover_registro(entrada: io.TextIOWrapper, chave: str):
-    chave_removido, offset_removido, tam_removido = busca_chave(entrada,chave)
-    entrada.seek(offset_removido, os.SEEK_SET) # Posiciona o ponteiro no início do reg a ser removido (antes mesmo de seu offset)
+    entrada.seek(os.SEEK_SET) # Coloca, por garantia, o ponteiro no começo do arquivo
+    chave_removido, byteOffset_removido, tam_removido = busca_chave(entrada,chave)
+    entrada.seek(byteOffset_removido, os.SEEK_SET) # Posiciona o ponteiro no byteoffset do reg a ser removido
     entrada.seek(2, os.SEEK_CUR) # Posiciona o ponteiro após o offset do registro, em seu primeiro campo (chave primária) 
     entrada.write('*'.encode()) # Sobrescreve a chave primária com '*'
     entrada.seek(os.SEEK_SET) # Posiciona o ponteiro de L/E no 0.
-    offset_primeiro_led = entrada.read(4) # Lê a cabeça da led no cabeçalho do arquivo e armazena em offset_primeiro_led
-    led_anterior = offset_primeiro_led
-    atual_led = offset_removido.to_bytes(4)
-    entrada.seek(int.from_bytes(offset_primeiro_led),os.SEEK_SET)     
-    if tam_removido >= int.from_bytes(entrada.read(2)):
-        entrada.seek(os.SEEK_SET)
-        entrada.write(atual_led)
-        entrada.seek(offset_removido + 3, os.SEEK_SET)
-        entrada.write(offset_primeiro_led)
-    while int.from_bytes(offset_primeiro_led) != CABECA_LED_PADRAO:
-        entrada.seek(int.from_bytes(offset_primeiro_led), os.SEEK_SET)
-        tam_primeiroLED = int.from_bytes(entrada.read(2)) # Lê o tamanho do registro que está no topo da LED
-        entrada.seek(int.from_bytes(atual_led) + 3, os.SEEK_SET)
-        if tam_removido >= tam_primeiroLED:
-            entrada.write(offset_primeiro_led)
-            entrada.seek(int.from_bytes(led_anterior), os.SEEK_SET)
-            entrada.seek(int.from_bytes(offset_primeiro_led), os.SEEK_SET)
-            offset_primeiro_led = offset_removido.to_bytes(4)
-        else:
-            entrada.seek(int.from_bytes(offset_primeiro_led)+3, os.SEEK_SET)
-            led_anterior = offset_primeiro_led           
-            offset_primeiro_led = entrada.read(4)
-            if offset_primeiro_led == CABECA_LED_PADRAO.to_bytes(4):
-                entrada.seek(int.from_bytes(led_anterior)+3, os.SEEK_SET)
-                entrada.write(offset_removido.to_bytes(4))
-
-    #print(int.from_bytes(atual_led))
-    #print(int.from_bytes(offset_primeiro_led))
-    entrada.seek(int.from_bytes(atual_led) + 3, os.SEEK_SET)
-    entrada.write(offset_primeiro_led)
-    entrada.seek(os.SEEK_SET)
+    headLed = int.from_bytes(entrada.read(4)) # Lê a cabeça da led no cabeçalho do arquivo e armazena em headLed
+    if headLed == CABECA_LED_PADRAO:
+        entrada.seek(os.SEEK_SET) # Posiciona o ponteiro de volta no início do arquivo
+        entrada.write(byteOffset_removido.to_bytes(4)) # É escrito na cabeça da LED o byte offset do último removido
+        entrada.seek(byteOffset_removido+3, os.SEEK_SET) # Posiciona-se o ponteiro mais uma vez em 0 e o avança para a posição após o * do último registro removido
+        entrada.write(headLed.to_bytes(4)) # Escreve a última cabeça da LED (byte offset do removido anterior) no último registro removido
+    else: # headLed != CABECA_LED_PADRAO:
+        entrada.seek(headLed, os.SEEK_SET)
+        tam_headLed = int.from_bytes(entrada.read(2))
+        if tam_headLed <= tam_removido:
+            entrada.seek(os.SEEK_SET) # Posiciona o ponteiro de volta no início do arquivo
+            entrada.write(byteOffset_removido.to_bytes(4)) # É escrito na cabeça da LED o byte offset do último removido
+            entrada.seek(byteOffset_removido+3, os.SEEK_SET) # Posiciona-se o ponteiro mais uma vez em 0 e o avança para a posição após o * do último registro removido
+            entrada.write(headLed.to_bytes(4)) # Escreve a última cabeça da LED (byte offset do removido anterior) no último registro removido
+        else: # tam_headLed > tam_removido:
+            while tam_headLed > tam_removido:
+                headLed_ant = headLed # Guarda o registro que ocupava a cabeça da LED anteriormente ao atual
+                entrada.seek(1, os.SEEK_CUR) # Pula o '*'
+                headLed = entrada.read(4) # Lê o byteoffset do próximo removido (menor que o anterior)
+                headLed = int.from_bytes(headLed) # Converte o byteoffset para inteiro
+                entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro na posição do registro indicado pela cabeça da LED
+                tam_headLed = int.from_bytes(entrada.read(2)) # Guarda o tamanho do registro indicado pela cabeça da LED
+            entrada.seek(headLed_ant+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do menor registro maior que o último removido
+            entrada.write(byteOffset_removido.to_bytes(4)) # Escreve no menor registro maior que o último removido o byteoffset do último removido
+            entrada.seek(byteOffset_removido+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do último registro removido
+            entrada.write(headLed.to_bytes(4)) # Escreve após o '*' do último registro removido o próximo espaço disponível menor que ele (se não houver, escreve -1)
 
 
 
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
     
 with open('dados copy.dat', 'rb+') as entrada:
-    remover_registro(entrada,'1')
-    #remover_registro(entrada,'3')
-    
-    
-    
-      
-    '''chave_removida, ponteiro_removido, tamanho_removido = busca_chave(entrada,chave)
-    entrada.seek(os.SEEK_SET)
-    offset_led = entrada.read(4)
-    entrada.seek(ponteiro_removido, os.SEEK_SET)
-    entrada.write('*'.encode())
-    ponteiro_pre_offset = ponteiro_removido - 2
-    entrada.seek(os.SEEK_SET)
-    if int.from_bytes(entrada.read(4)) == CABECA_LED_PADRAO:
-        entrada.seek(ponteiro_removido + 1, os.SEEK_SET)
-        entrada.write(CABECA_LED_PADRAO.to_bytes(4))
-        offset_led = ponteiro_pre_offset
-        entrada.seek(os.SEEK_SET)
-        entrada.write(offset_led.to_bytes(4))
-        entrada.seek(os.SEEK_SET)
-    else:
-        while int.from_bytes(offset_led) != CABECA_LED_PADRAO:
-            entrada.seek(int.from_bytes(offset_led), os.SEEK_SET)
-            tamanho_atual_led = int.from_bytes(entrada.read(2))
-            if tamanho_atual_led > tamanho_removido:
-                entrada.seek(1)
-                offset_led = entrada.read(4)
-            else:
-                offset_proximo = offset_led
-                offset_led = (ponteiro_pre_offset).to_bytes(4)
-                entrada.seek((ponteiro_pre_offset) + 3, os.SEEK_SET)
-                entrada.write(offset_proximo)
-                offset_led = offset_proximo
-                print(int.from_bytes(offset_proximo))
-    entrada.seek(os.SEEK_SET)'''
-
-
-
+    #remover_registro(entrada,'1')
+    #remover_registro(entrada,'2')
+    #remover_registro(entrada,'4')
+    remover_registro(entrada,'3')
