@@ -62,16 +62,16 @@ def remover_registro(entrada: io.TextIOWrapper, chave: str):
     if tam_removido >= int.from_bytes(entrada.read(2)):
         entrada.seek(os.SEEK_SET)
         entrada.write(atual_led)
-        entrada.seek(offset_removido + 3, os.SEEK_SET)
-        entrada.write(offset_primeiro_led)
     while int.from_bytes(offset_primeiro_led) != CABECA_LED_PADRAO:
         entrada.seek(int.from_bytes(offset_primeiro_led), os.SEEK_SET)
         tam_primeiroLED = int.from_bytes(entrada.read(2)) # Lê o tamanho do registro que está no topo da LED
         entrada.seek(int.from_bytes(atual_led) + 3, os.SEEK_SET)
-        if tam_removido >= tam_primeiroLED:
+        if tam_removido > tam_primeiroLED:
             entrada.write(offset_primeiro_led)
-            entrada.seek(int.from_bytes(led_anterior), os.SEEK_SET)
-            entrada.seek(int.from_bytes(offset_primeiro_led), os.SEEK_SET)
+            entrada.seek(int.from_bytes(led_anterior) + 3, os.SEEK_SET)
+            entrada.write(offset_primeiro_led)
+            entrada.seek(int.from_bytes(offset_primeiro_led) + 3, os.SEEK_SET)
+            led_anterior = offset_primeiro_led
             offset_primeiro_led = offset_removido.to_bytes(4)
         else:
             entrada.seek(int.from_bytes(offset_primeiro_led)+3, os.SEEK_SET)
@@ -91,8 +91,8 @@ def remover_registro(entrada: io.TextIOWrapper, chave: str):
     
     
 with open('dados copy.dat', 'rb+') as entrada:
+    remover_registro(entrada,'2')
     remover_registro(entrada,'1')
-    #remover_registro(entrada,'3')
     
     
     
