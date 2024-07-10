@@ -82,7 +82,7 @@ def remover_registro(entrada: io.TextIOWrapper, chave: str):
             entrada.write(byteOffset_removido.to_bytes(4)) # Escreve no menor registro maior que o último removido o byteoffset do último removido
             entrada.seek(byteOffset_removido+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do último registro removido
             entrada.write(headLed.to_bytes(4)) # Escreve após o '*' do último registro removido o próximo espaço disponível menor que ele (se não houver, escreve -1)
-    entrada.seek(os.SEEK_SET)
+    entrada.seek(os.SEEK_SET) # Reposiciona o ponteiro no início do arquivo após a operação
 
 
 
@@ -95,20 +95,19 @@ def remover_registro(entrada: io.TextIOWrapper, chave: str):
 
 
 def imprimir_led(entrada: io.TextIOWrapper):
-    entrada.seek(os.SEEK_SET)
-    cabeca_led = int.from_bytes(entrada.read(4))
-    print(cabeca_led)
-    buffer = 'LED'
-    contagem_espacos = 0
+    entrada.seek(os.SEEK_SET) # Posiciona o ponteiro no início do arquivo
+    cabeca_led = int.from_bytes(entrada.read(4)) # Lê e armazena a cabeça da led em *cabeca_led*
+    buffer = 'LED' # Inicia o buffer que conterá a string de saída
+    contagem_espacos = 0 # Inicia a contagem de espaços disponíveis em zero
     while cabeca_led != CABECA_LED_PADRAO:
-        contagem_espacos += 1
-        entrada.seek(cabeca_led, os.SEEK_SET)
-        offset = entrada.tell()
-        tamanho = int.from_bytes(entrada.read(2))
-        buffer += (f' -> [offset: {offset}, tam: {tamanho}]')
-        entrada.seek(1, os.SEEK_CUR)
-        cabeca_led = int.from_bytes(entrada.read(4))
-    buffer += ' -> [offset = - 1]' 
+        contagem_espacos += 1 # Sempre que encontrar um ponteiro diferente do -1 (fim da LED), adiciona 1 ao número de espaços disponíveis
+        entrada.seek(cabeca_led, os.SEEK_SET) # Posiciona o ponteiro no registro removido com espaço equivalente à cabeça da LED
+        offset = entrada.tell() # Armazena em *offset* o byteoffset do espaço disponível
+        tamanho = int.from_bytes(entrada.read(2)) # Armazena em *tamanho* o tamanho do espaço disponível
+        buffer += (f' -> [offset: {offset}, tam: {tamanho}]') # Atualiza a string buffer com o espaço disponível encontrado que é menor que o anterior
+        entrada.seek(1, os.SEEK_CUR) # Faz o "pular" o caracter '*' que indica ser um registro removido
+        cabeca_led = int.from_bytes(entrada.read(4)) # Lê o próximo espaço removido menor que o atual e o atualiza para continuar a busca por espaços disponíveis
+    buffer += ' -> [offset = -1]' # Após o fim do while, adiciona o último offset possível que a cabeça da LED assuma (-1) 
     print(buffer + '\nTotal:', contagem_espacos,'espacos disponiveis' )
 
 
@@ -121,8 +120,8 @@ def imprimir_led(entrada: io.TextIOWrapper):
     
     
 with open('dados copy.dat', 'rb+') as entrada:
-    #remover_registro(entrada,'1')
-    #remover_registro(entrada,'2')
-    #remover_registro(entrada,'4')
-    #remover_registro(entrada,'3')
+    remover_registro(entrada,'1')
+    remover_registro(entrada,'2')
+    remover_registro(entrada,'4')
+    remover_registro(entrada,'3')
     imprimir_led(entrada)
