@@ -49,6 +49,7 @@ def busca_chave(entrada: io.TextIOWrapper, chave: str):
     else: # Caso não encontre o registro buscado, levante o erro na busca
         raise('Erro! Identificador não encontrado.')  
 
+
 def remover_registro(entrada: io.TextIOWrapper, chave: str):
     entrada.seek(os.SEEK_SET) # Coloca, por garantia, o ponteiro no começo do arquivo
     chave_removido, byteOffset_removido, tam_removido = busca_chave(entrada,chave)
@@ -94,16 +95,16 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
     headLed = int.from_bytes(entrada.read(4))
     entrada.seek(headLed, os.SEEK_SET)
     tam_headLed = int.from_bytes(entrada.read(2))
+    tam_sobrou = tam_headLed - tamanho_reg
     if tam_headLed >= tamanho_reg:
-        entrada.seek(1)
-        #proxima_cabeca = entrada.read(4)
-        tam_sobrou = tam_headLed - tamanho_reg
-        entrada.write(tamanho_reg.to_bytes(2))
+        entrada.seek(1, os.SEEK_CUR)
+        proxima_cabeca = entrada.read(4)
         entrada.seek(headLed + tam_sobrou, os.SEEK_SET)
+        entrada.write(tamanho_reg.to_bytes(2))
         entrada.write(registro_bytes)
         entrada.seek(headLed, os.SEEK_SET)
         entrada.write((tam_sobrou - 2).to_bytes(2))
-        byteOffset_inserido = headLed + tam_sobrou
+        byteOffset_sobrou = headLed
         if tam_sobrou >= 10:
             while tam_headLed > tam_sobrou:
                 headLed_ant = headLed # Guarda o registro que ocupava a cabeça da LED anteriormente ao atual
@@ -114,8 +115,8 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
                 entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro na posição do registro indicado pela cabeça da LED
                 tam_headLed = int.from_bytes(entrada.read(2)) # Guarda o tamanho do registro indicado pela cabeça da LED
             entrada.seek(headLed_ant + 3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do menor registro maior que o último removido
-            entrada.write(byteOffset_inserido.to_bytes(4)) # Escreve no menor registro maior que o último removido o byteoffset do último removido
-            entrada.seek(byteOffset_inserido+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do último registro removido
+            entrada.write(byteOffset_sobrou.to_bytes(4)) # Escreve no menor registro maior que o último removido o byteoffset do último removido
+            entrada.seek(byteOffset_sobrou + 3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do último registro removido
             entrada.write(headLed.to_bytes(4))
     else:
         entrada.seek(0, os.SEEK_END)
@@ -129,12 +130,12 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
 
 
 
-
 def imprimir_led(entrada: io.TextIOWrapper):
     entrada.seek(os.SEEK_SET) # Posiciona o ponteiro no início do arquivo
     cabeca_led = int.from_bytes(entrada.read(4)) # Lê e armazena a cabeça da led em *cabeca_led*
     buffer = 'LED' # Inicia o buffer que conterá a string de saída
     contagem_espacos = 0 # Inicia a contagem de espaços disponíveis em zero
+    entrada.seek(cabeca_led, os.SEEK_SET) # Posiciona o ponteiro no registro removido com espaço equivalente à cabeça da LED
     while cabeca_led != CABECA_LED_PADRAO:
         contagem_espacos += 1 # Sempre que encontrar um ponteiro diferente do -1 (fim da LED), adiciona 1 ao número de espaços disponíveis
         entrada.seek(cabeca_led, os.SEEK_SET) # Posiciona o ponteiro no registro removido com espaço equivalente à cabeça da LED
@@ -152,13 +153,13 @@ def imprimir_led(entrada: io.TextIOWrapper):
 
 
 
-
     
     
 with open('dados copy.dat', 'rb+') as entrada:
     remover_registro(entrada,'1')
-    #remover_registro(entrada,'2')
+    remover_registro(entrada,'2')
     #remover_registro(entrada,'4')
-    #remover_registro(entrada,'3')
+    remover_registro(entrada,'3')
     imprimir_led(entrada)
-    inserir_registro(entrada,'147|Resident Evil 2|1998|Survival horror|Capcom|PlayStation|')
+    #inserir_registro(entrada,'147|Resident Evil 2|1998|Survival horror|')
+    imprimir_led(entrada)
