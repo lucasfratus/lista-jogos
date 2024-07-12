@@ -1,6 +1,6 @@
 import io
 import os
-
+from sys import argv
 # CONSTANTES
 SIZEOF_HEADER = 4
 CABECA_LED_PADRAO = 4294967295
@@ -118,33 +118,22 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
             entrada.write(tam_sobra.to_bytes(2))
             entrada.write('*'.encode())
             headLed = headLed_ant
-            print(int.from_bytes(headLed))
             tam_headLed = tam_headLed_ant
-            print(tam_headLed)
             entrada.seek(int.from_bytes(headLed)+3, os.SEEK_SET)
             headLed_ant = int.from_bytes(entrada.read(4))
-            print(headLed_ant)
             entrada.seek(headLed_ant, os.SEEK_SET)
             tam_headLed_ant = int.from_bytes(entrada.read(2))
-            print(tam_headLed_ant)
             cabeca = headLed
-            print(int.from_bytes(cabeca))
             while tam_headLed > tam_sobra:
                 cabeca = headLed
-                print(cabeca)
                 headLed = headLed_ant
-                print(headLed)
                 entrada.seek(headLed, os.SEEK_SET)
                 tam_headLed = int.from_bytes(entrada.read(2))
                 entrada.seek(1, os.SEEK_CUR)
                 headLed_ant = int.from_bytes(entrada.read(4))
-                print(tam_headLed)
-                print(tam_sobra)
-                print(headLed_ant)
             entrada.seek(int.from_bytes(novoOfsset_removido)+3, os.SEEK_SET)
             entrada.write(headLed.to_bytes(4))
             entrada.seek(cabeca+3, os.SEEK_SET)
-            print(int.from_bytes(novoOfsset_removido))
             entrada.write(novoOfsset_removido)
 
         else: # tam_sobra < 10:
@@ -177,14 +166,25 @@ def imprimir_led(entrada: io.TextIOWrapper):
     buffer += ' -> [offset = -1]' # Após o fim do while, adiciona o último offset possível que a cabeça da LED assuma (-1) 
     print(buffer + '\nTotal:', contagem_espacos,'espacos disponiveis' )
 
+def main() -> None:
+    with open('dados copy.dat', 'rb+') as entrada:
+        assert (len(argv) > 4)
+        if len(argv) < 2:
+            raise TypeError('Numero incorreto de argumentos!')
+        elif len(argv) == 3:
+            opera = input('')
+            if opera[0] == 'r':
+                opera = opera[2:]
+                remover_registro(entrada, opera)
+                print('Remoção do registro de chave ' + '"' + opera + '"')
+        else: # len(argv) > 2 and len(argv) != 3, apenas resta a opção que o len(argv) = 2
+            imprimir_led(entrada)
 
-
-
-
-
+if __name__ == '__main__':
+    main()
 
     
-    
+'''    
 with open('dados copy.dat', 'rb+') as entrada:
     imprimir_led(entrada)
     #remover_registro(entrada,'1')
@@ -197,3 +197,4 @@ with open('dados copy.dat', 'rb+') as entrada:
     imprimir_led(entrada)
     inserir_registro(entrada,'450|Resident Evil 2|pqoweqopweoqwpeoqwepoqpwoeqwpoeqwpoeqowpeoqwpeiqowieqopwieqopwieoqpwiepoqwieqpowie')
     imprimir_led(entrada)
+'''
