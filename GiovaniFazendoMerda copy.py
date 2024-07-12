@@ -94,43 +94,39 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
     reg = registro.encode()
     tam_reg = len(registro) # Soma o tamanho do registro mais um espaço de dois bytes em que ficará seu offset 
     if tam_headLed >= tam_reg:
-        entrada.seek(headLed+3, os.SEEK_SET)
-        headLed_ant = entrada.read(4)
-        novoOfsset_removido = (headLed + tam_reg + 4).to_bytes(2)
         entrada.seek(headLed+2, os.SEEK_SET)
+        novoOfsset_removido = (headLed + tam_reg + 4).to_bytes(2)
         resto_removido = entrada.read(5)
         entrada.seek(headLed, os.SEEK_SET)
         entrada.write(tam_reg.to_bytes(2))
         entrada.write(reg)
         tam_sobra = tam_headLed - tam_reg - 2
-        headLed = int.from_bytes(headLed_ant)
-        entrada.seek(headLed, os.SEEK_SET)
-        tam_headLed = int.from_bytes(entrada.read(2))
-        if tam_sobra > tam_headLed:
-            entrada.seek(os.SEEK_SET)
-            entrada.write(novoOfsset_removido)
-        elif tam_sobra > 10:
-            entrada.seek(os.SEEK_SET)
-            entrada.write(headLed.to_bytes(4))
+        if tam_sobra > 10:
             entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET)
             entrada.write(tam_sobra.to_bytes(2))
             entrada.write(resto_removido)
-            entrada.seek(headLed+2, os.SEEK_SET)
+            entrada.seek(int.from_bytes(novoOfsset_removido)+3, os.SEEK_SET)
+            headLed_ant = entrada.read(4)
+            entrada.seek(os.SEEK_SET)
+            entrada.write(headLed_ant)
+            headLed = int.from_bytes(headLed_ant)
+            entrada.seek(headLed, os.SEEK_SET)
+            tam_headLed = int.from_bytes(entrada.read(2))
             while tam_headLed > tam_sobra:
-                headLed_ant = headLed 
+                headLed_ant = headLed # Guarda o registro que ocupava a cabeça da LED anteriormente ao atual
                 entrada.seek(1, os.SEEK_CUR) # Pula o '*'
-                headLed = entrada.read(4) 
+                headLed = entrada.read(4) # Lê o byteoffset do próximo removido (menor que o anterior)
                 headLed = int.from_bytes(headLed) # Converte o byteoffset para inteiro
                 entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro na posição do registro indicado pela cabeça da LED
                 tam_headLed = int.from_bytes(entrada.read(2)) # Guarda o tamanho do registro indicado pela cabeça da LED
             entrada.seek(int.from_bytes(novoOfsset_removido)+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do menor registro maior que o último removido
-            entrada.write(int.to_bytes(headLed)) # Escreve no menor registro maior que o último removido o byteoffset do último removido
-            entrada.seek(int.to_bytes(headLed_ant)+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do último registro removido
+            entrada.write(headLed.to_bytes(4)) # Escreve no menor registro maior que o último removido o byteoffset do último removido
+            entrada.seek(int.from_bytes(headLed_ant)+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do último registro removido
             entrada.write(novoOfsset_removido)
 
         else: # tam_sobra < 10:
-            entrada.seek(os.SEEK_SET)
-            entrada.write(headLed_ant)
+            entrada.seek(novoOfsset_removido+3, os.SEEK_SET)
+            entrada.write('\0\0'.encode())
 
 
     else: # O tamanho do novo registro não cabe na cabeça da LED, portanto deve ser inserido no final do arquivo
@@ -261,13 +257,13 @@ def imprimir_led(entrada: io.TextIOWrapper):
     
     
 with open('dados copy.dat', 'rb+') as entrada:
-    #remover_registro(entrada,'1')
+    remover_registro(entrada,'1')
     imprimir_led(entrada)
     remover_registro(entrada,'2')
-    #imprimir_led(entrada)
-    #remover_registro(entrada,'4')
-    #imprimir_led(entrada)
-    #remover_registro(entrada,'3')
-    #imprimir_led(entrada)
+    imprimir_led(entrada)
+    remover_registro(entrada,'4')
+    imprimir_led(entrada)
+    remover_registro(entrada,'3')
+    imprimir_led(entrada)
     inserir_registro(entrada,'147|Resident Evil 2|1998|Survival horror|')
     imprimir_led(entrada)
