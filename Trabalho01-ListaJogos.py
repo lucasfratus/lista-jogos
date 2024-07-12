@@ -136,15 +136,15 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
                 headLed_ant = int.from_bytes(entrada.read(4))
             entrada.seek(int.from_bytes(novoOfsset_removido)+3, os.SEEK_SET)
             entrada.write(headLed.to_bytes(4))
-            entrada.seek(cabeca+3, os.SEEK_SET)
+            print(cabeca)
+            entrada.seek(int.from_bytes(cabeca)+3, os.SEEK_SET)
             entrada.write(novoOfsset_removido)
-
-        else: # tam_sobra < 10:
             entrada.seek(os.SEEK_SET)
-            entrada.write(headLed_ant)
+        else: # tam_sobra < 10:
+            #entrada.seek(os.SEEK_SET)
+            #entrada.write(headLed_ant)
             entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET)
             entrada.write(resto_removido)
-
     else: # O tamanho do novo registro não cabe na cabeça da LED, portanto deve ser inserido no final do arquivo
         posicao_inserida = 'fim do arquivo'
         entrada.seek(0, os.SEEK_END)
@@ -187,7 +187,10 @@ def ler_arq_operacao(entrada: io.TextIOWrapper):
             except:
                 print('Registro não encontrado\n')
         if operacao == 'i':
-            chave_insercao = linha[2:-1]
+            if linha[-1] == '|':
+                chave_insercao = linha[2:]
+            else:
+                chave_insercao = linha[2:-1]
             chave_dividida =  chave_insercao.split('|')
             id = chave_dividida[0]
             tamanho = len(chave_insercao)
@@ -197,7 +200,7 @@ def ler_arq_operacao(entrada: io.TextIOWrapper):
             elif tam_sobra < 10:
                 print(f'Inserção do registro de chave "{id}" ({tamanho} bytes)\nTamanho do espaço reutilizado: {tam_headLed} bytes\nLocal: offset = {local} bytes ({hex(local)})\n')
             else:
-                print(f'Inserção do registro de chave "{id}" ({tamanho} bytes)\nTamanho do espaço reutilizado: {tam_headLed} bytes (Sobra de: {tam_sobra} bytes)\nLocal: offset = {local} bytes ({hex(local)})\n')
+                print(f'Inserção do registro de chave "{id}" ({tamanho} bytes)\nTamanho do espaço reutilizado: {tamanho + tam_sobra + 2} bytes (Sobra de: {tam_sobra} bytes)\nLocal: offset = {local} bytes ({hex(local)})\n')
         if operacao == 'r':
             try:
                 chave_remocao = str(linha[2:-1])
@@ -207,6 +210,7 @@ def ler_arq_operacao(entrada: io.TextIOWrapper):
                 print(f'Remoção do registro de chave "{chave_remocao}" \nErro: registro não encontrado!\n')
         linha = arq_operacao.readline()
         entrada.seek(os.SEEK_SET)
+    arq_operacao.close()
 
 
 def main() -> None:
