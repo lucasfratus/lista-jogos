@@ -135,13 +135,12 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
             entrada.write(headLed.to_bytes(4))
             entrada.seek(cabeca+3, os.SEEK_SET)
             entrada.write(novoOfsset_removido)
-
         else: # tam_sobra < 10:
             entrada.seek(os.SEEK_SET)
             entrada.write(headLed_ant)
             entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET)
-            entrada.write(resto_removido)
-
+            entrada.write(resto_removido) 
+        return tam_headLed, tam_sobra, novoOfsset_removido
     else: # O tamanho do novo registro não cabe na cabeça da LED, portanto deve ser inserido no final do arquivo
         entrada.seek(0, os.SEEK_END)
         entrada.write((len(registro)).to_bytes(2))
