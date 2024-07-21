@@ -110,69 +110,80 @@ def remover_registro(entrada: io.TextIOWrapper, chave: str):
     return byteOffset_removido, tam_removido
 
 def inserir_registro(entrada: io.TextIOWrapper, registro: str):
-    entrada.seek(os.SEEK_SET)
+    '''
+    Recebe um arquivo de *entrada* e um *registro* a ser inserido nesse arquivo.
+    Analisa o tamanho do espaço disponível que ocupa a cabeça da LED e, caso o registro
+    a ser inserido tenha tamanho menor ou igual ao da cabeça, é inserido no byteoffset
+    apontado pela cabeça da LED. Se o tamanho do inserido for menor que a cabeça da LED,
+    é calculado o tamanho da sobra do espaço e, caso a sobra seja maior que 10 bytes,
+    a sobra é reinserida na LED 
+    Se o registro inserido for maior que o espaço da cabeça da LED, o registro é inserido
+    ao final do arquivo.
+    A LED utiliza a estratégia de organização Worst-Fit, visando retardar a necessidade de
+    compactação do arquivo.
+    '''
+    entrada.seek(os.SEEK_SET) # Coloca o ponteiro no início do arquivo
     headLed = int.from_bytes(entrada.read(4)) # Lê a cabeça da led no cabeçalho do arquivo e armazena em headLed
-    entrada.seek(headLed, os.SEEK_SET)
-    tam_headLed = int.from_bytes(entrada.read(2))
-    reg = registro.encode()
-    tam_reg = len(registro) # Soma o tamanho do registro mais um espaço de dois bytes em que ficará seu offset 
-    tam_sobra = 0
-    if tam_headLed >= tam_reg:
-        entrada.seek(headLed+3, os.SEEK_SET)
-        headLed_ant = entrada.read(4)
-        novoOfsset_removido = (headLed + tam_reg + 2).to_bytes(4)
-        entrada.seek(headLed+2, os.SEEK_SET)
-        resto_removido = entrada.read(5)
-        posicao_inserida = headLed #Linha Inserida por Lucas
-        entrada.seek(headLed, os.SEEK_SET)
-        entrada.write(tam_reg.to_bytes(2))
-        entrada.write(reg)
-        tam_sobra = tam_headLed - tam_reg - 2
-        entrada.seek(int.from_bytes(headLed_ant), os.SEEK_SET)
-        tam_headLed_ant = int.from_bytes(entrada.read(2))
-        if tam_sobra > tam_headLed_ant:
-            entrada.seek(os.SEEK_SET)
-            entrada.write(novoOfsset_removido)
-            entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET)
-            entrada.write(tam_sobra.to_bytes(2))
-            entrada.write(resto_removido)
-        elif tam_sobra > 10:
-            entrada.seek(os.SEEK_SET)
-            entrada.write(headLed_ant)
-            entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET)
-            entrada.write(tam_sobra.to_bytes(2))
-            entrada.write('*'.encode())
-            headLed = headLed_ant
-            tam_headLed = tam_headLed_ant
-            entrada.seek(int.from_bytes(headLed)+3, os.SEEK_SET)
-            headLed_ant = int.from_bytes(entrada.read(4))
-            entrada.seek(headLed_ant, os.SEEK_SET)
-            tam_headLed_ant = int.from_bytes(entrada.read(2))
-            cabeca = headLed
-            while tam_headLed > tam_sobra:
-                cabeca = headLed
-                headLed = headLed_ant
-                entrada.seek(headLed, os.SEEK_SET)
-                tam_headLed = int.from_bytes(entrada.read(2))
-                entrada.seek(1, os.SEEK_CUR)
-                headLed_ant = int.from_bytes(entrada.read(4))
-            entrada.seek(int.from_bytes(novoOfsset_removido)+3, os.SEEK_SET)
-            entrada.write(headLed.to_bytes(4))
-            print(cabeca)
-            entrada.seek(int.from_bytes(cabeca)+3, os.SEEK_SET)
-            entrada.write(novoOfsset_removido)
-            entrada.seek(os.SEEK_SET)
+    entrada.seek(headLed, os.SEEK_SET) # Leva o ponteiro até o byteoffset do espaço disponível que ocupa a cabeça da LED
+    tam_headLed = int.from_bytes(entrada.read(2)) # É lido e armazenado o tamanho da cabeça da LED
+    reg = registro.encode() # Passa o *registro* a ser inserido para sua forma em bytes
+    tam_reg = len(registro) # Mede o tamanho do *registro* a ser inserido 
+    tam_sobra = 0 # Cria a variável que armazenará o tamanho da sobra
+    if tam_headLed >= tam_reg: # Se o tamanho da cabeça for maior ou igual ao tamanho do registro a ser inserido, faça:
+        entrada.seek(headLed+3, os.SEEK_SET) # Posicione o ponteiro após o '*' do registro removido que ocupa a cabeça da LED
+        headLed_ant = entrada.read(4) # Leia o byteoffset da cabeça da LED anterior (espaço disponível que seja menor que o que ocupa a cabeça atualmente)
+        novoOfsset_removido = (headLed + tam_reg + 2).to_bytes(4) # Calcula o byteoffset que a sobra ficará após a inserção do novo registro
+        entrada.seek(headLed+2, os.SEEK_SET) # Posiciona o ponteiro no espaço disponível da cabeça da LED, após seu tamanho
+        resto_removido = entrada.read(5) # Armazena 5 bytes do espaço disponível da cabeça da LED (após seu tamanho), para uso posterior
+        posicao_inserida = headLed # Guarda o byteoffset de onde é inserido o novo registro
+        entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro no byteoffset do espaço disponível na cabeça da LED
+        entrada.write(tam_reg.to_bytes(2)) # Escreve o tamanho do registro inserido
+        entrada.write(reg) # Escreve o registro inserido
+        tam_sobra = tam_headLed - tam_reg - 2 # Calcula o tamanho que sobra após a inserção do novo registro
+        entrada.seek(int.from_bytes(headLed_ant), os.SEEK_SET) # Posiciona o ponteiro no espaço disponível menor que a cabeça da LED considerada
+        tam_headLed_ant = int.from_bytes(entrada.read(2)) # Mede-se o tamanho do espaço disponível menor que a cabeça da LED considerada
+        if tam_sobra > tam_headLed_ant: # Caso o tamanho que sobra da inserção continue sendo maior que o espaço disponível menor que a cabeça da LED considerada
+            entrada.seek(os.SEEK_SET) # Posiciona o ponteiro no cabeçalho
+            entrada.write(novoOfsset_removido) # A nova cabeça da LED deverá ser o espaço que sobrou da inserção, portando, o novo byteoffset da sobra é escrito no cabeçalho 
+            entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET) # Posiciona o ponteiro no novo byteoffset da sobra disponível
+            entrada.write(tam_sobra.to_bytes(2)) # Escreve o novo tamanho da sobra disponível
+            entrada.write(resto_removido) # Escreve o '*' (para indicar ser um espaço disponível) e o byteoffset do próximo espaço disponível na LED
+        elif tam_sobra > 10: # Se o tamanho da sobra for somente maior que 10:
+            entrada.seek(os.SEEK_SET) # Posiciona o ponteiro no início do arquivo
+            entrada.write(headLed_ant) # Escreve no cabeçalho o byteoffset da nova cabeça da LED (primeiro espaço disponível menor que o utilizado na inserção do registro)
+            entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET) # Posiciona o ponteiro no novo byteoffset da sobra
+            entrada.write(tam_sobra.to_bytes(2)) # Escreve o tamanho da sobra após inserção
+            entrada.write('*'.encode()) # Escreve o '*' (indicador de remoção)
+            headLed = headLed_ant # Atualiza a cabeça da LED para o byteoffset da nova cabeça
+            tam_headLed = tam_headLed_ant # Atualiza o tamanho da nova cabeça da LED
+            entrada.seek(int.from_bytes(headLed)+3, os.SEEK_SET) # Posiciona o ponteiro na nova cabeça da LED, após o '*'
+            headLed_ant = int.from_bytes(entrada.read(4)) # É lido o byteoffset do próximo espaço disponível (menor que a cabeça atual)
+            entrada.seek(headLed_ant, os.SEEK_SET) # Posiciona o ponteiro no próximo espaço disponível menor que a cabeça atual
+            tam_headLed_ant = int.from_bytes(entrada.read(2)) # É lido o tamanho do próximo espaço menor que a cabeça
+            cabeca = headLed # Armazena o byteoffset da cabeça atual em outra variável
+            while tam_headLed > tam_sobra: # Enquanto o tamanho da cabeça atual for maior que o tamanho da sobra:
+                cabeca = headLed # Armazena o byteoffset da cabeça atual em outra variável
+                headLed = headLed_ant # Cabeça atual passa a ser o próximo espaço disponível
+                entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro no byteoffset da nova cabeça considerada
+                tam_headLed = int.from_bytes(entrada.read(2)) # Mede-se o tamanho da cabeça
+                entrada.seek(1, os.SEEK_CUR) # Posiciona o ponteiro após o '*'
+                headLed_ant = int.from_bytes(entrada.read(4)) # Armazena o byteoffset do próximo espaço disponível menor que o da cabeça atualmente considerada
+            entrada.seek(int.from_bytes(novoOfsset_removido)+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do espaço restante da inserção
+            entrada.write(headLed.to_bytes(4)) # Faz com que o espaço restante da inserção aponte para o próximo espaço disponível na LED que seja menor que ele
+            entrada.seek(int.from_bytes(cabeca)+3, os.SEEK_SET) # Posiciona o ponteiro no primeiro espaço da LED maior que o espaço restante da inserção do registro 
+            entrada.write(novoOfsset_removido) # Faz com que o primeiro espaço da LED maior que o espaço restante da inserção do registro aponte para o espaço restante
+            entrada.seek(os.SEEK_SET) # Posiciona, por segurança, o ponteiro de volta no início do arquivo
         else: # tam_sobra < 10:
-            #entrada.seek(os.SEEK_SET)
-            #entrada.write(headLed_ant)
-            entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET)
-            entrada.write(resto_removido)
+            entrada.seek(os.SEEK_SET) # Posiciona o ponteiro no cabeçalho do arquivo
+            entrada.write(headLed_ant) # Escreve a nova cabeça da LED (que era apontada pela cabeça inicial)
+            entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET) # Posiciona o ponteiro no novo offset do que sobrou do espaço após a inserção
+            entrada.write('*'.enconde()) # Escreve um '*' para separar o registro inserido do restante da sobra menor que 10 bytes
     else: # O tamanho do novo registro não cabe na cabeça da LED, portanto deve ser inserido no final do arquivo
         posicao_inserida = 'fim do arquivo'
-        entrada.seek(0, os.SEEK_END)
-        entrada.write((len(registro)).to_bytes(2))
-        registro_bytes = registro.encode()
-        entrada.write(registro_bytes)
+        entrada.seek(0, os.SEEK_END) # Posiciona o ponteiro em EOF
+        entrada.write((len(registro)).to_bytes(2)) # Escreve o tamanho do registro a ser inserido
+        registro_bytes = registro.encode() # Transforma o *registro* em bytes
+        entrada.write(registro_bytes) # Escreve o *registro* em bytes
     entrada.seek(os.SEEK_SET)   # Reposiciona o ponteiro no início do arquivo após a operação
     return posicao_inserida, tam_headLed, tam_sobra 
 
