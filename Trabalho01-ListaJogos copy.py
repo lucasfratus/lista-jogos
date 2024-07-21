@@ -1,9 +1,11 @@
 import io
 import os
 from sys import argv
+
 # CONSTANTES
 SIZEOF_HEADER = 4
 CABECA_LED_PADRAO = 4294967295
+
 
 def leia_reg(entrada: io.TextIOWrapper):
     '''
@@ -13,7 +15,7 @@ def leia_reg(entrada: io.TextIOWrapper):
     '''
     if entrada.tell() < SIZEOF_HEADER:
         entrada.seek(4, os.SEEK_SET) # Coloca o ponteiro no primeiro registro, pulando o header.
-    offset = entrada.read(2) # É lido o offset (tamanho) do registro
+    offset = entrada.read(2)
     offset = int.from_bytes(offset)    # O tamanho do registro é transformado de binário para inteiro
     posicao_ponteiro = entrada.tell() # É guardada a posição que o ponteiro fica após ser lido o offset (marcando a chave primária do registro)
     ler_possivel_asterisco = entrada.read(1).decode() # É lido o primeiro caractere do campo após o tamanho do registro (chave primária)
@@ -51,7 +53,7 @@ def busca_chave(entrada: io.TextIOWrapper, chave: str):
             registro, posicao_ponteiro = leia_reg(entrada) # É lido o próximo registro 
     '''
     Após a busca em arquivo, existem duas possibilidades: chave encontrada (achou é atualizado para True) ou 
-    a busca atingiu EOF.
+    a busca atingiu EOF. Caso aconteça a segunda possibilidade, acontece um raise de um erro.
     '''
     if achou == True: # Caso encontre o registro buscado
         registro = registro.split(sep='|') # registro é dividido em uma lista de strings (que representam seus campos)
@@ -74,15 +76,15 @@ def remover_registro(entrada: io.TextIOWrapper, chave: str):
     Mantém os registros removidos organizados em uma "Lista de Espaços Disponíveis" (LED) que 
     usa a estratégia Worst-Fit, visando retardar necessidade de compactação do arquivo. 
     '''
-    entrada.seek(os.SEEK_SET) # Coloca, por garantia, o ponteiro no começo do arquivo
+    entrada.seek(os.SEEK_SET) 
     chave_removido, byteOffset_removido, tam_removido = busca_chave(entrada,chave) # Faz a busca pela chave do registro que deseja-se remover, guarda-se seu byteoffset e tamanho.
     entrada.seek(byteOffset_removido, os.SEEK_SET) # Posiciona o ponteiro no byteoffset do reg a ser removido
     entrada.seek(2, os.SEEK_CUR) # Posiciona o ponteiro após o offset do registro, em seu primeiro campo (chave primária) 
     entrada.write('*'.encode()) # Sobrescreve a chave primária com '*'
-    entrada.seek(os.SEEK_SET) # Posiciona o ponteiro de L/E no cabeçalho do arquivo.
+    entrada.seek(os.SEEK_SET) 
     headLed = int.from_bytes(entrada.read(4)) # Lê a cabeça da LED no cabeçalho do arquivo e armazena em headLed
     if headLed == CABECA_LED_PADRAO:
-        entrada.seek(os.SEEK_SET) # Posiciona o ponteiro de volta no início do arquivo
+        entrada.seek(os.SEEK_SET) 
         entrada.write(byteOffset_removido.to_bytes(4)) # É escrito na cabeça da LED o byte offset do último removido
         entrada.seek(byteOffset_removido+3, os.SEEK_SET) # Posiciona-se o ponteiro mais uma vez em 0 e o avança para a posição após o * do último registro removido
         entrada.write(headLed.to_bytes(4)) # Escreve a última cabeça da LED (byte offset do removido anterior) no último registro removido
@@ -90,7 +92,7 @@ def remover_registro(entrada: io.TextIOWrapper, chave: str):
         entrada.seek(headLed, os.SEEK_SET)
         tam_headLed = int.from_bytes(entrada.read(2))
         if tam_headLed <= tam_removido:
-            entrada.seek(os.SEEK_SET) # Posiciona o ponteiro de volta no início do arquivo
+            entrada.seek(os.SEEK_SET) 
             entrada.write(byteOffset_removido.to_bytes(4)) # É escrito na cabeça da LED o byte offset do último removido
             entrada.seek(byteOffset_removido+3, os.SEEK_SET) # Posiciona-se o ponteiro mais uma vez em 0 e o avança para a posição após o * do último registro removido
             entrada.write(headLed.to_bytes(4)) # Escreve a última cabeça da LED (byte offset do removido anterior) no último registro removido
@@ -122,22 +124,22 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
     A LED utiliza a estratégia de organização Worst-Fit, visando retardar a necessidade de
     compactação do arquivo.
     '''
-    entrada.seek(os.SEEK_SET) # Coloca o ponteiro no início do arquivo
-    headLed = int.from_bytes(entrada.read(4)) # Lê a cabeça da led no cabeçalho do arquivo e armazena em headLed
+    entrada.seek(os.SEEK_SET)
+    headLed = int.from_bytes(entrada.read(4))
     entrada.seek(headLed, os.SEEK_SET) # Leva o ponteiro até o byteoffset do espaço disponível que ocupa a cabeça da LED
     tam_headLed = int.from_bytes(entrada.read(2)) # É lido e armazenado o tamanho da cabeça da LED
     reg = registro.encode() # Passa o *registro* a ser inserido para sua forma em bytes
-    tam_reg = len(registro) # Mede o tamanho do *registro* a ser inserido 
-    tam_sobra = 0 # Cria a variável que armazenará o tamanho da sobra
+    tam_reg = len(registro)
+    tam_sobra = 0 
     if tam_headLed >= tam_reg: # Se o tamanho da cabeça for maior ou igual ao tamanho do registro a ser inserido, faça:
         entrada.seek(headLed+3, os.SEEK_SET) # Posicione o ponteiro após o '*' do registro removido que ocupa a cabeça da LED
         headLed_ant = entrada.read(4) # Leia o byteoffset da cabeça da LED anterior (espaço disponível que seja menor que o que ocupa a cabeça atualmente)
         novoOfsset_removido = (headLed + tam_reg + 2).to_bytes(4) # Calcula o byteoffset que a sobra ficará após a inserção do novo registro
         entrada.seek(headLed+2, os.SEEK_SET) # Posiciona o ponteiro no espaço disponível da cabeça da LED, após seu tamanho
-        resto_removido = entrada.read(5) # Armazena 5 bytes do espaço disponível da cabeça da LED (após seu tamanho), para uso posterior
+        resto_removido = entrada.read(5) # Armazena 5 bytes do espaço disponível da cabeça da LED (após seu tamanho), para uso posterior(incluindo o '*')
         posicao_inserida = headLed # Guarda o byteoffset de onde é inserido o novo registro
         entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro no byteoffset do espaço disponível na cabeça da LED
-        entrada.write(tam_reg.to_bytes(2)) # Escreve o tamanho do registro inserido
+        entrada.write(tam_reg.to_bytes(2)) 
         entrada.write(reg) # Escreve o registro inserido
         tam_sobra = tam_headLed - tam_reg - 2 # Calcula o tamanho que sobra após a inserção do novo registro
         entrada.seek(int.from_bytes(headLed_ant), os.SEEK_SET) # Posiciona o ponteiro no espaço disponível menor que a cabeça da LED considerada
@@ -165,33 +167,40 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
                 cabeca = headLed # Armazena o byteoffset da cabeça atual em outra variável
                 headLed = headLed_ant # Cabeça atual passa a ser o próximo espaço disponível
                 entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro no byteoffset da nova cabeça considerada
-                tam_headLed = int.from_bytes(entrada.read(2)) # Mede-se o tamanho da cabeça
+                tam_headLed = int.from_bytes(entrada.read(2))
                 entrada.seek(1, os.SEEK_CUR) # Posiciona o ponteiro após o '*'
                 headLed_ant = int.from_bytes(entrada.read(4)) # Armazena o byteoffset do próximo espaço disponível menor que o da cabeça atualmente considerada
             entrada.seek(int.from_bytes(novoOfsset_removido)+3, os.SEEK_SET) # Posiciona o ponteiro após o '*' do espaço restante da inserção
             entrada.write(headLed.to_bytes(4)) # Faz com que o espaço restante da inserção aponte para o próximo espaço disponível na LED que seja menor que ele
             entrada.seek(int.from_bytes(cabeca)+3, os.SEEK_SET) # Posiciona o ponteiro no primeiro espaço da LED maior que o espaço restante da inserção do registro 
             entrada.write(novoOfsset_removido) # Faz com que o primeiro espaço da LED maior que o espaço restante da inserção do registro aponte para o espaço restante
-            entrada.seek(os.SEEK_SET) # Posiciona, por segurança, o ponteiro de volta no início do arquivo
+            entrada.seek(os.SEEK_SET)
         else: # tam_sobra < 10:
-            entrada.seek(os.SEEK_SET) # Posiciona o ponteiro no cabeçalho do arquivo
+            entrada.seek(os.SEEK_SET)
             entrada.write(headLed_ant) # Escreve a nova cabeça da LED (que era apontada pela cabeça inicial)
             entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET) # Posiciona o ponteiro no novo offset do que sobrou do espaço após a inserção
             entrada.write('*'.enconde()) # Escreve um '*' para separar o registro inserido do restante da sobra menor que 10 bytes
     else: # O tamanho do novo registro não cabe na cabeça da LED, portanto deve ser inserido no final do arquivo
         posicao_inserida = 'fim do arquivo'
-        entrada.seek(0, os.SEEK_END) # Posiciona o ponteiro em EOF
+        entrada.seek(0, os.SEEK_END)
         entrada.write((len(registro)).to_bytes(2)) # Escreve o tamanho do registro a ser inserido
         registro_bytes = registro.encode() # Transforma o *registro* em bytes
         entrada.write(registro_bytes) # Escreve o *registro* em bytes
-    entrada.seek(os.SEEK_SET)   # Reposiciona o ponteiro no início do arquivo após a operação
+    entrada.seek(os.SEEK_SET)  
     return posicao_inserida, tam_headLed, tam_sobra 
 
 
 def imprimir_led(entrada: io.TextIOWrapper):
-    entrada.seek(os.SEEK_SET) # Posiciona o ponteiro no início do arquivo
+    '''
+    Imprime na tela todos os espaços disponiveis que pertencem a LED(Lista de espaços disponíveis).
+    A impressão da LED será acessada por meio de linha de comando, da seguinte forma:
+    $ python programa.py -p
+    sendo a flag -p a que sinaliza o modo de impressão.
+    Apresentará na tela os offsets dos espaços disponiveis, iniciando pela cabeça da LED, além de mostrar o número de espaços disponíveis.
+    '''
+    entrada.seek(os.SEEK_SET)
     cabeca_led = int.from_bytes(entrada.read(4)) # Lê e armazena a cabeça da led em *cabeca_led*
-    buffer = 'LED' # Inicia o buffer que conterá a string de saída
+    buffer = 'LED'
     contagem_espacos = 0 # Inicia a contagem de espaços disponíveis em zero
     entrada.seek(cabeca_led, os.SEEK_SET) # Posiciona o ponteiro no registro removido com espaço equivalente à cabeça da LED
     while cabeca_led != CABECA_LED_PADRAO:
@@ -200,18 +209,27 @@ def imprimir_led(entrada: io.TextIOWrapper):
         offset = entrada.tell() # Armazena em *offset* o byteoffset do espaço disponível
         tamanho = int.from_bytes(entrada.read(2)) # Armazena em *tamanho* o tamanho do espaço disponível
         buffer += (f' -> [offset: {offset}, tam: {tamanho}]') # Atualiza a string buffer com o espaço disponível encontrado que é menor que o anterior
-        entrada.seek(1, os.SEEK_CUR) # Faz o "pular" o caracter '*' que indica ser um registro removido
+        entrada.seek(1, os.SEEK_CUR)
         cabeca_led = int.from_bytes(entrada.read(4)) # Lê o próximo espaço removido menor que o atual e o atualiza para continuar a busca por espaços disponíveis
     buffer += ' -> [offset = -1]' # Após o fim do while, adiciona o último offset possível que a cabeça da LED assuma (-1) 
-    print(buffer + '\nTotal:', contagem_espacos,'espacos disponiveis' )
+    print(buffer + '\nTotal:',contagem_espacos,'espacos disponiveis' )
 
 
 def ler_arq_operacao(entrada: io.TextIOWrapper):
+    '''
+    Será responsável por ler o arquivo de operações.
+    O arquivo de operações possui uma operação por linha, identificada com um dos seguintes identificadores:
+    b = busca,
+    i = inserção,
+    r = remoção,
+    e seguidas pelos seus argumentos.
+    Além disso, imprimirá na tela o resultado das operações.
+    '''
     entrada.seek(os.SEEK_SET)
     arq_operacao = open('arquivo_operacoes','r')
-    linha = arq_operacao.readline()
+    linha = arq_operacao.readline() # Lê a primeira linha do arquivo de operação
     while linha != '':
-        operacao = linha[0] 
+        operacao = linha[0] # Lê o primeiro caractere da linha(é resposável por indicar qual operação será feita)
         if operacao == 'b':
             chave_buscada = str(linha[2:-1])
             try:
@@ -220,6 +238,10 @@ def ler_arq_operacao(entrada: io.TextIOWrapper):
             except:
                 print('Registro não encontrado\n')
         if operacao == 'i':
+            '''
+            Ambos "Ifs" abaixo são responsáveis por, no momento do split, realizarem ele da forma correta, já que na ultima linha do arquivo de operações
+            não existe o "\n".
+            '''
             if linha[-1] == '|':
                 chave_insercao = linha[2:]
             else:
@@ -236,7 +258,10 @@ def ler_arq_operacao(entrada: io.TextIOWrapper):
                 print(f'Inserção do registro de chave "{id}" ({tamanho} bytes)\nTamanho do espaço reutilizado: {tamanho + tam_sobra + 2} bytes (Sobra de: {tam_sobra} bytes)\nLocal: offset = {local} bytes ({hex(local)})\n')
         if operacao == 'r':
             try:
-                chave_remocao = str(linha[2:-1])
+                if linha[-1] == '|':
+                    chave_remocao = str(linha[2:])
+                else:
+                    chave_remocao = str(linha[2:-1])
                 local_removido, tamanho = remover_registro(entrada, chave_remocao)
                 print(f'Remoção do registro de chave "{chave_remocao}" \nRegistro removido!({tamanho} bytes)\nLocal: offset = {local_removido} bytes ({hex(local_removido)})\n')
             except:
@@ -247,15 +272,17 @@ def ler_arq_operacao(entrada: io.TextIOWrapper):
 
 
 def main() -> None:
-    with open('dados.dat', 'rb+') as entrada:
-        if len(argv) == 3:
-            ler_arq_operacao(entrada)
-        elif len(argv) == 2:
-            if argv[1] == '-p':
-                imprimir_led(entrada)
-        else:
-            raise TypeError('Numero incorreto de argumentos!')
-
+    try:
+        with open('dados.dat', 'rb+') as entrada:
+            if len(argv) == 3:
+                ler_arq_operacao(entrada)
+            elif len(argv) == 2:
+                if argv[1] == '-p':
+                    imprimir_led(entrada)
+            else:
+                raise TypeError('Numero incorreto de argumentos!')
+    except:
+        raise('Não foi possível abrir o arquivo "dados.dat"')
 
 if __name__ == '__main__':
     main()
