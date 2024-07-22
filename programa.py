@@ -217,7 +217,7 @@ def imprimir_led(entrada: io.TextIOWrapper):
 
 def ler_arq_operacao(entrada: io.TextIOWrapper):
     '''
-    Será responsável por ler o arquivo de operações.
+    Será responsável por ler o arquivo de operações.(O arquivo de operações sempre deverá ter o )
     O arquivo de operações possui uma operação por linha, identificada com um dos seguintes identificadores:
     b = busca,
     i = inserção,
@@ -231,17 +231,21 @@ def ler_arq_operacao(entrada: io.TextIOWrapper):
     while linha != '':
         operacao = linha[0] # Lê o primeiro caractere da linha(é resposável por indicar qual operação será feita)
         if operacao == 'b':
-            chave_buscada = str(linha[2:-1])
+            '''
+            Ambos "Ifs" abaixo são responsáveis por, no momento do split, realizarem ele da forma correta, já que na ultima linha do arquivo de operações
+            não existe o "\n".
+            '''
+            if linha[-1] != '\n':
+                chave_buscada = linha[2:]
+            else:
+                chave_buscada = linha[2:-1]
             try:
                 reg_buscado, loc_ponteiro, tamanho = busca_chave(entrada, chave_buscada)
                 print(f'Busca pelo registro de chave "{chave_buscada}" \n{reg_buscado} ({tamanho} bytes)\n')
             except:
                 print('Registro não encontrado\n')
         if operacao == 'i':
-            '''
-            Ambos "Ifs" abaixo são responsáveis por, no momento do split, realizarem ele da forma correta, já que na ultima linha do arquivo de operações
-            não existe o "\n".
-            '''
+
             if linha[-1] == '|':
                 chave_insercao = linha[2:]
             else:
@@ -283,6 +287,7 @@ def main() -> None:
                 raise TypeError('Numero incorreto de argumentos!')
     except:
         raise('Não foi possível abrir o arquivo "dados.dat"')
+
 
 if __name__ == '__main__':
     main()
