@@ -1,3 +1,6 @@
+# Alunos: 
+# Giovani Oliveira Santos RA:133166
+# Lucas de Oliveira Fratus RA:134698
 import io
 import os
 from sys import argv
