@@ -286,7 +286,7 @@ def main() -> None:
             else:
                 raise TypeError('Numero incorreto de argumentos!')
     except:
-        raise('Não foi possível abrir o arquivo "dados.dat"')
+        raise FileNotFoundError('Não foi possível econtrar o arquivo "dados.dat"')
 
 
 if __name__ == '__main__':
