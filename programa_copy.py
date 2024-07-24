@@ -141,19 +141,23 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
         entrada.seek(headLed+2, os.SEEK_SET) # Posiciona o ponteiro no espaço disponível da cabeça da LED, após seu tamanho
         resto_removido = entrada.read(5) # Armazena 5 bytes do espaço disponível da cabeça da LED (após seu tamanho), para uso posterior(incluindo o '*')
         posicao_inserida = headLed # Guarda o byteoffset de onde é inserido o novo registro
-        entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro no byteoffset do espaço disponível na cabeça da LED
-        entrada.write(tam_reg.to_bytes(2))
+        entrada.seek(headLed+2, os.SEEK_SET) # Posiciona o ponteiro( no byteoffset do espaço disponível na cabeça da LED
+        #entrada.write(tam_reg.to_bytes(2))
         entrada.write(reg) # Escreve o registro inserido
         tam_sobra = tam_headLed - tam_reg - 2 # Calcula o tamanho que sobra após a inserção do novo registro
         entrada.seek(headLed_ant, os.SEEK_SET) # Posiciona o ponteiro no espaço disponível menor que a cabeça da LED considerada
         tam_headLed_ant = int.from_bytes(entrada.read(2)) # Mede-se o tamanho do espaço disponível menor que a cabeça da LED considerada
         if tam_sobra > tam_headLed_ant: # Caso o tamanho que sobra da inserção continue sendo maior que o espaço disponível menor que a cabeça da LED considerada
+            entrada.seek(headLed, os.SEEK_SET)
+            entrada.write(tam_reg.to_bytes(2))
             entrada.seek(os.SEEK_SET) # Posiciona o ponteiro no cabeçalho
             entrada.write(novoOfsset_removido) # A nova cabeça da LED deverá ser o espaço que sobrou da inserção, portando, o novo byteoffset da sobra é escrito no cabeçalho
             entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET) # Posiciona o ponteiro no novo byteoffset da sobra disponível
             entrada.write(tam_sobra.to_bytes(2)) # Escreve o novo tamanho da sobra disponível
             entrada.write(resto_removido) # Escreve o '*' (para indicar ser um espaço disponível) e o byteoffset do próximo espaço disponível na LED
         elif tam_sobra > 10: # Se o tamanho da sobra for somente maior que 10:
+            entrada.seek(headLed, os.SEEK_SET)
+            entrada.write(tam_reg.to_bytes(2))
             entrada.seek(os.SEEK_SET) # Posiciona o ponteiro no início do arquivo
             entrada.write(headLed_ant.to_bytes(4)) # Escreve no cabeçalho o byteoffset da nova cabeça da LED (primeiro espaço disponível menor que o utilizado na inserção do registro)
             entrada.seek(int.from_bytes(novoOfsset_removido), os.SEEK_SET) # Posiciona o ponteiro no novo byteoffset da sobra
@@ -179,8 +183,8 @@ def inserir_registro(entrada: io.TextIOWrapper, registro: str):
             entrada.write(novoOfsset_removido) # Faz com que o primeiro espaço da LED maior que o espaço restante da inserção do registro aponte para o espaço restante
             entrada.seek(os.SEEK_SET)
         else: # tam_sobra < 10:
-            entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro no byteoffset do espaço disponível na cabeça da LED
-            entrada.write((tam_reg + tam_sobra).to_bytes(2)) # O tamanho do inserido leva em conta o tamanho da sobra junto dele, tornando a sobra fragmentação interna
+            #entrada.seek(headLed, os.SEEK_SET) # Posiciona o ponteiro no byteoffset do espaço disponível na cabeça da LED
+            #entrada.write((tam_reg + tam_sobra).to_bytes(2)) # O tamanho do inserido leva em conta o tamanho da sobra junto dele, tornando a sobra fragmentação interna
             entrada.seek(os.SEEK_SET) # Posiciona de volta o ponteiro no cabeçalho
             entrada.write(headLed_ant.to_bytes(4)) # Escreve a nova cabeça da LED (que era apontada pela cabeça inicial)
     else: # O tamanho do novo registro não cabe na cabeça da LED, portanto deve ser inserido no final do arquivo
